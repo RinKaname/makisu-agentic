@@ -258,11 +258,23 @@ def respond(message, history):
         # However, skip_special_tokens=True usually removes the thought blocks if they are special tokens.
         # But in Gemma 4, we might need to parse_response to cleanly separate thoughts and content.
         result_parsed = processor.parse_response(processor.decode(generated_tokens, skip_special_tokens=False))
-        yield result_parsed.get("content", final_output)
+
+        final_text = result_parsed.get("content", final_output)
+        thinking = result_parsed.get("thinking")
+        if thinking:
+            final_text = f"<details><summary>Thought Process</summary>\n\n```\n{thinking}\n```\n\n</details>\n\n" + final_text
+
+        yield final_text
     else:
         # No tool calls, just yield the response
         result_parsed = processor.parse_response(output)
-        yield result_parsed.get("content", output)
+
+        final_text = result_parsed.get("content", output)
+        thinking = result_parsed.get("thinking")
+        if thinking:
+            final_text = f"<details><summary>Thought Process</summary>\n\n```\n{thinking}\n```\n\n</details>\n\n" + final_text
+
+        yield final_text
 
 
 demo = gr.ChatInterface(
