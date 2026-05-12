@@ -135,6 +135,9 @@ tool_map = {t.__name__: t for t in available_tools}
 # Extract Tool Calls
 # ------------------------------------------------------------------------------
 
+TOOL_CALL_RE = re.compile(r"<\|tool_call>call:(\w+)\{(.*?)\}<tool_call\|>", re.DOTALL)
+ARG_RE = re.compile(r'(\w+):(?:<\|"\|>(.*?)<\|"\|>|([^,}]*))')
+
 def extract_tool_calls(text):
     def cast(v):
         try: return int(v)
@@ -146,9 +149,9 @@ def extract_tool_calls(text):
         "name": name,
         "arguments": {
             k: cast((v1 or v2).strip())
-            for k, v1, v2 in re.findall(r'(\w+):(?:<\|"\|>(.*?)<\|"\|>|([^,}]*))', args)
+            for k, v1, v2 in ARG_RE.findall(args)
         }
-    } for name, args in re.findall(r"<\|tool_call>call:(\w+)\{(.*?)\}<tool_call\|>", text, re.DOTALL)]
+    } for name, args in TOOL_CALL_RE.findall(text)]
 
 # ------------------------------------------------------------------------------
 # Gradio Interface
