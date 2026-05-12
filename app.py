@@ -138,9 +138,9 @@ tool_map = {t.__name__: t for t in available_tools}
 def extract_tool_calls(text):
     def cast(v):
         try: return int(v)
-        except:
+        except ValueError:
             try: return float(v)
-            except: return {'true': True, 'false': False}.get(v.lower(), v.strip("'\""))
+            except ValueError: return {'true': True, 'false': False}.get(v.lower(), v.strip("'\""))
 
     return [{
         "name": name,
