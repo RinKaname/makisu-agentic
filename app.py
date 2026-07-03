@@ -62,7 +62,9 @@ SYSTEM_PROMPT = """You are Makise Kurisu, a brilliant neuroscience researcher an
 # Define Tools
 # ------------------------------------------------------------------------------
 
-import requests
+import urllib.request
+import urllib.parse
+import json
 
 def get_current_weather(location: str, unit: str = "celsius"):
     """
@@ -78,19 +80,21 @@ def get_current_weather(location: str, unit: str = "celsius"):
     print(f"Executing tool: get_current_weather for {location}")
     try:
         # 1. Geocode the location
-        geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location}&count=1&language=en&format=json"
-        geo_response = requests.get(geocode_url)
-        geo_response.raise_for_status()
-        geo_data = geo_response.json()
+        safe_location = urllib.parse.quote(location)
+        geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={safe_location}&count=1&language=en&format=json"
+        req = urllib.request.Request(geocode_url, headers={'User-Agent': 'Mozilla/5.0'})
+        geo_response = urllib.request.urlopen(req)
+        geo_data = json.loads(geo_response.read().decode('utf-8'))
 
         if not geo_data.get("results"):
             # Try cleaning up the location string, e.g. "Tokyo, JP" -> "Tokyo"
             clean_location = location.split(',')[0].strip()
             if clean_location != location:
-                geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_location}&count=1&language=en&format=json"
-                geo_response = requests.get(geocode_url)
-                geo_response.raise_for_status()
-                geo_data = geo_response.json()
+                safe_clean_location = urllib.parse.quote(clean_location)
+                geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={safe_clean_location}&count=1&language=en&format=json"
+                req = urllib.request.Request(geocode_url, headers={'User-Agent': 'Mozilla/5.0'})
+                geo_response = urllib.request.urlopen(req)
+                geo_data = json.loads(geo_response.read().decode('utf-8'))
 
         if not geo_data.get("results"):
             return {"error": f"Location '{location}' not found."}
@@ -102,9 +106,9 @@ def get_current_weather(location: str, unit: str = "celsius"):
         temp_unit = "fahrenheit" if unit == "fahrenheit" else "celsius"
         weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&temperature_unit={temp_unit}"
 
-        weather_response = requests.get(weather_url)
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
+        req = urllib.request.Request(weather_url, headers={'User-Agent': 'Mozilla/5.0'})
+        weather_response = urllib.request.urlopen(req)
+        weather_data = json.loads(weather_response.read().decode('utf-8'))
 
         current = weather_data.get("current_weather", {})
         temperature = current.get("temperature")
