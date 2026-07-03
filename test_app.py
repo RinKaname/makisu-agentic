@@ -21,18 +21,63 @@ sys.modules["yfinance"] = mock_yfinance
 # Now import the function to test from app.py
 from app import get_current_weather
 
-def test_get_current_weather_default_unit():
-    """Test get_current_weather with default unit (celsius)."""
+from unittest.mock import patch
+
+@patch("app.requests.get")
+def test_get_current_weather_default_unit(mock_get):
+    """Test get_current_weather with default unit (celsius) using mocked Open-Meteo."""
+    # Mock Geocode response
+    mock_geocode_response = MagicMock()
+    mock_geocode_response.json.return_value = {
+        "results": [{"latitude": 37.7749, "longitude": -122.4194}]
+    }
+
+    # Mock Weather response
+    mock_weather_response = MagicMock()
+    mock_weather_response.json.return_value = {
+        "current_weather": {"temperature": 15.5, "weathercode": 2}
+    }
+
+    mock_get.side_effect = [mock_geocode_response, mock_weather_response]
+
     location = "San Francisco, CA"
     result = get_current_weather(location)
 
-    expected = {"temperature": 22, "weather": "partly cloudy", "unit": "celsius"}
+    expected = {"temperature": 15.5, "weather": "Partly cloudy", "unit": "celsius"}
     assert result == expected
 
-def test_get_current_weather_fahrenheit():
+@patch("app.requests.get")
+def test_get_current_weather_fahrenheit(mock_get):
     """Test get_current_weather with fahrenheit unit."""
+    # Mock Geocode response
+    mock_geocode_response = MagicMock()
+    mock_geocode_response.json.return_value = {
+        "results": [{"latitude": 35.6895, "longitude": 139.6917}]
+    }
+
+    # Mock Weather response
+    mock_weather_response = MagicMock()
+    mock_weather_response.json.return_value = {
+        "current_weather": {"temperature": 75.2, "weathercode": 1}
+    }
+
+    mock_get.side_effect = [mock_geocode_response, mock_weather_response]
+
     location = "Tokyo, JP"
     result = get_current_weather(location, unit="fahrenheit")
 
-    expected = {"temperature": 22, "weather": "partly cloudy", "unit": "fahrenheit"}
+    expected = {"temperature": 75.2, "weather": "Mainly clear", "unit": "fahrenheit"}
     assert result == expected
+
+@patch("app.requests.get")
+def test_get_current_weather_location_not_found(mock_get):
+    """Test get_current_weather when geocoding fails to find the location."""
+    mock_geocode_response = MagicMock()
+    mock_geocode_response.json.return_value = {"results": []}
+    mock_get.return_value = mock_geocode_response
+
+    location = "NowhereCityThatDoesNotExist"
+    result = get_current_weather(location)
+
+    assert "error" in result
+    assert "not found" in result["error"].lower()
