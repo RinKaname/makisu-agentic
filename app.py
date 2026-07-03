@@ -62,6 +62,8 @@ SYSTEM_PROMPT = """You are Makise Kurisu, a brilliant neuroscience researcher an
 # Define Tools
 # ------------------------------------------------------------------------------
 
+import requests
+
 def get_current_weather(location: str, unit: str = "celsius"):
     """
     Gets the current weather in a given location.
@@ -74,7 +76,66 @@ def get_current_weather(location: str, unit: str = "celsius"):
         A dictionary containing the temperature and weather description.
     """
     print(f"Executing tool: get_current_weather for {location}")
-    return {"temperature": 22, "weather": "partly cloudy", "unit": unit}
+    try:
+        # 1. Geocode the location
+        geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location}&count=1&language=en&format=json"
+        geo_response = requests.get(geocode_url)
+        geo_response.raise_for_status()
+        geo_data = geo_response.json()
+
+        if not geo_data.get("results"):
+            # Try cleaning up the location string, e.g. "Tokyo, JP" -> "Tokyo"
+            clean_location = location.split(',')[0].strip()
+            if clean_location != location:
+                geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={clean_location}&count=1&language=en&format=json"
+                geo_response = requests.get(geocode_url)
+                geo_response.raise_for_status()
+                geo_data = geo_response.json()
+
+        if not geo_data.get("results"):
+            return {"error": f"Location '{location}' not found."}
+
+        lat = geo_data["results"][0]["latitude"]
+        lon = geo_data["results"][0]["longitude"]
+
+        # 2. Get weather
+        temp_unit = "fahrenheit" if unit == "fahrenheit" else "celsius"
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&temperature_unit={temp_unit}"
+
+        weather_response = requests.get(weather_url)
+        weather_response.raise_for_status()
+        weather_data = weather_response.json()
+
+        current = weather_data.get("current_weather", {})
+        temperature = current.get("temperature")
+        weathercode = current.get("weathercode")
+
+        # Simple WMO code mapping
+        wmo_codes = {
+            0: "Clear sky",
+            1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+            45: "Fog", 48: "Depositing rime fog",
+            51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+            56: "Light freezing drizzle", 57: "Dense freezing drizzle",
+            61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+            66: "Light freezing rain", 67: "Heavy freezing rain",
+            71: "Slight snow fall", 73: "Moderate snow fall", 75: "Heavy snow fall",
+            77: "Snow grains",
+            80: "Slight rain showers", 81: "Moderate rain showers", 82: "Violent rain showers",
+            85: "Slight snow showers", 86: "Heavy snow showers",
+            95: "Thunderstorm",
+            96: "Thunderstorm with slight hail", 99: "Thunderstorm with heavy hail"
+        }
+
+        weather_desc = wmo_codes.get(weathercode, f"Unknown code {weathercode}")
+
+        return {
+            "temperature": temperature,
+            "weather": weather_desc,
+            "unit": unit
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 ddgs_client = DDGS()
