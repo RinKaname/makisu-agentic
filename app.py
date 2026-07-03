@@ -77,6 +77,8 @@ def get_current_weather(location: str, unit: str = "celsius"):
     return {"temperature": 22, "weather": "partly cloudy", "unit": unit}
 
 
+ddgs_client = DDGS()
+
 def search_duckduckgo(query: str):
     """
     Searches the web using DuckDuckGo and returns the top 3 results.
@@ -89,7 +91,7 @@ def search_duckduckgo(query: str):
     """
     print(f"Executing tool: search_duckduckgo with query '{query}'")
     try:
-        results = DDGS().text(query, max_results=3)
+        results = ddgs_client.text(query, max_results=3)
         return list(results)
     except Exception as e:
         return {"error": str(e)}
